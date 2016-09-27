@@ -36,6 +36,7 @@ final class CookiePlugin implements Plugin
      */
     public function handleRequest(RequestInterface $request, callable $next, callable $first)
     {
+        $cookies = [];
         foreach ($this->cookieJar->getCookies() as $cookie) {
             if ($cookie->isExpired()) {
                 continue;
@@ -53,7 +54,11 @@ final class CookiePlugin implements Plugin
                 continue;
             }
 
-            $request = $request->withAddedHeader('Cookie', sprintf('%s=%s', $cookie->getName(), $cookie->getValue()));
+            $cookies[] = sprintf('%s=%s', $cookie->getName(), $cookie->getValue());
+        }
+        if ($cookies) {
+            $cookiesLine = implode('; ', array_merge($request->getHeader('Cookie'), $cookies));
+            $request = $request->withHeader('Cookie', $cookiesLine);
         }
 
         return $next($request)->then(function (ResponseInterface $response) use ($request) {
@@ -69,7 +74,7 @@ final class CookiePlugin implements Plugin
                     }
 
                     // Restrict setting cookie from another domain
-                    if (false === strpos($cookie->getDomain(), $request->getUri()->getHost())) {
+                    if (false === strpos($request->getUri()->getHost(), $cookie->getDomain())) {
                         continue;
                     }
 
